@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High-Probability Options Screener</title>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#151f32',
+                            900: '#0f172a',
+                            950: '#020617',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+
+        /* Custom Scrollbar for a premium feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Animations */
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+            }
+
+            100% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+
+        .status-pulse {
+            animation: pulse-ring 2s infinite;
+        }
+
+        .card-hover {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            border-color: #334155;
+        }
+
+        /* Flashing exit animation */
+        @keyframes flash-exit {
+
+            0%,
+            100% {
+                background-color: rgba(185, 28, 28, 0.2);
+                border-color: rgba(220, 38, 38, 0.5);
+            }
+
+            50% {
+                background-color: rgba(185, 28, 28, 0.6);
+                border-color: rgba(239, 68, 68, 1);
+            }
+        }
+
+        .exit-now-alert {
+            animation: flash-exit 1s infinite;
+        }
+    </style>
+</head>
+
+<body class="antialiased selection:bg-blue-500/30">
+
+    <div class="max-w-7xl mx-auto p-4 lg:p-8 flex flex-col gap-6">
+
+        <!-- Header & Search Bar -->
+        <header
+            class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 shadow-lg backdrop-blur-sm">
+            <div>
+                <h1
+                    class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent flex items-center gap-3">
+                    <i data-lucide="activity" class="text-blue-400 h-6 w-6"></i>
+                    Options Screener
+                </h1>
+                <p class="text-slate-400 text-sm mt-1">Daily High-Probability Setup Scanner with 70% or better win rate
+                </p>
+                <div class="flex items-center gap-2 mt-3 text-slate-500 text-xs font-mono font-medium tracking-wide">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                    <span id="currentDateDisplay">--</span>
+                </div>
+            </div>
+
+            <div class="w-full md:w-96 relative group">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i data-lucide="search"
+                        class="h-5 w-5 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+                </div>
+                <input type="text" id="tickerInput"
+                    class="block w-full pl-10 pr-3 py-3 border border-slate-700 rounded-xl leading-5 bg-slate-800/80 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm uppercase transition-all shadow-inner"
+                    placeholder="ENTER TICKER (e.g. SPY)" autocomplete="off">
+                <button id="scanBtn"
+                    class="absolute inset-y-1.5 right-1.5 bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-lg text-sm font-medium transition-colors shadow-sm focus:ring-2 focus:ring-blue-400 focus:outline-none">
+                    SCAN
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+            <!-- Left Sidebar: Active Trades Panel -->
+            <div class="lg:col-span-1 flex flex-col gap-6">
+                <!-- Active Trades Wrapper -->
+                <div
+                    class="bg-slate-800/50 rounded-2xl border border-slate-700/50 shadow-lg p-5 flex-grow flex flex-col">
+                    <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="briefcase" class="w-5 h-5 text-emerald-400"></i>
+                            <h2 class="text-lg font-semibold text-slate-200">Active Trades</h2>
+                        </div>
+                        <span id="activeTradesCount"
+                            class="bg-slate-700 text-slate-300 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+
+                    <div class="flex-grow overflow-y-auto max-h-[600px] pr-1">
+                        <ul id="activeTradesList" class="space-y-4">
+                            <!-- Active Trade Cards injected here -->
+                            <li id="emptyActive" class="text-xs text-slate-500 italic text-center py-8">
+                                No active trades. Scan a ticker and save a qualified strategy.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Content: Strategy Cards Grid -->
+            <div class="lg:col-span-3">
+
+                <!-- Current Ticker Header Info (Hidden initially) -->
+                <div id="tickerStatsHeader"
+                    class="hidden flex items-center justify-between bg-slate-800/30 rounded-xl p-4 mb-6 border border-slate-700/30">
+                    <div class="flex items-center gap-4">
+                        <h2 id="currentTicker" class="text-3xl font-bold tracking-tight text-white font-mono">--</h2>
+                        <div class="h-8 w-px bg-slate-700"></div>
+                        <div class="flex flex-col">
+                            <span class="text-xs text-slate-400 uppercase tracking-wider">Current Price</span>
+                            <span id="currentPrice" class="text-lg font-semibold font-mono text-slate-200">$--</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 text-sm font-mono text-slate-400">
+                        <div class="flex flex-col items-end">
+                            <span class="text-[10px] uppercase tracking-wide">IV Rank</span>
+                            <span id="tickerIVR" class="font-medium">--%</span>
+                        </div>
+                        <div class="h-8 w-px bg-slate-700"></div>
+                        <div class="flex flex-col items-end">
+                            <span class="text-[10px] uppercase tracking-wide">14D RSI</span>
+                            <span id="tickerRSI" class="font-medium">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2x2 Grid for Strategies -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 relative" id="strategiesGrid">
+
+                    <!-- Strategy 1: Trend-Follow Call Credit -->
+                    <div id="card-strat1"
+                        class="bg-slate-800/80 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col card-hover relative group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-slate-700" id="indicator-strat1"></div>
+                        <div class="p-5 flex-grow">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Strat
+                                        01</span>
+                                    <h3 class="text-lg font-bold text-white leading-tight mt-1">Trend Call Credit Spread
+                                    </h3>
+                                </div>
+                                <div id="badge-strat1"
+                                    class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-400 flex items-center gap-1 border border-slate-600">
+                                    <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> IDLE
+                                </div>
+                            </div>
+                            <!-- Action Button (Hidden by default) -->
+                            <button id="btn-take-strat1"
+                                onclick="takeTrade(1, 'Trend Call Credit Spread', 'Close at 50% max profit or if underlying closes above the short strike.')"
+                                class="hidden w-full mb-4 bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded-lg text-xs font-bold tracking-wide transition-colors shadow-sm focus:ring-2 focus:ring-emerald-400 focus:outline-none flex justify-center items-center gap-2">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> TAKE TRADE
+                            </button>
+
+                            <ul class="text-sm text-slate-300 space-y-2 mb-5 font-mono" id="checklist-strat1">
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> SMA10 Downward Trend</li>
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> Price &lt; SMA10</li>
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> Price &gt; Lower Band (-3 SD)</li>
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> Daily Move Between &plusmn;1%</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-900/50 p-4 border-t border-slate-700/50">
+                            <div class="text-[10px] uppercase font-bold text-blue-400 mb-1 tracking-wider">Why it works
+                            </div>
+                            <div class="text-xs text-slate-400 mb-3 leading-relaxed">Capitalizes on an over-extended
+                                downward move (-3 SD) within an established downtrend, expecting a short-term bounce or
+                                stabilization while collecting premium.</div>
+
+                            <div class="text-[10px] uppercase font-bold text-slate-500 mb-1 tracking-wider">Target Setup
+                            </div>
+                            <div class="font-mono text-sm font-semibold text-slate-200 mb-3">Sell 25Δ Call / Buy +$1
+                                Strike / 9 DTE</div>
+
+                            <div class="text-[10px] uppercase font-bold text-amber-500/80 mb-1 tracking-wider">Exit
+                                Rules</div>
+                            <div class="font-mono text-xs text-slate-300">Close at 50% max profit or if underlying
+                                closes above the short strike.</div>
+                        </div>
+                    </div>
+
+                    <!-- Strategy 2: Short Put Overlay -->
+                    <div id="card-strat2"
+                        class="bg-slate-800/80 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col card-hover relative group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-slate-700" id="indicator-strat2"></div>
+                        <div class="p-5 flex-grow">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Strat
+                                        02</span>
+                                    <h3 class="text-lg font-bold text-white leading-tight mt-1">Mean-Revert Short Put
+                                    </h3>
+                                </div>
+                                <div id="badge-strat2"
+                                    class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-400 flex items-center gap-1 border border-slate-600">
+                                    <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> IDLE
+                                </div>
+                            </div>
+                            <!-- Action Button -->
+                            <button id="btn-take-strat2"
+                                onclick="takeTrade(2, 'Mean-Revert Short Put', 'Close at 50% Max Profit or at 21 DTE (whichever comes first) to minimize tail risk.')"
+                                class="hidden w-full mb-4 bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded-lg text-xs font-bold tracking-wide transition-colors shadow-sm focus:ring-2 focus:ring-emerald-400 focus:outline-none flex justify-center items-center gap-2">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> TAKE TRADE
+                            </button>
+
+                            <ul class="text-sm text-slate-300 space-y-2 mb-5 font-mono" id="checklist-strat2">
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> Price &gt; SMA200</li>
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> RSI14 &lt; 30 (Oversold)</li>
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> IV Rank: 35% - 70%</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-900/50 p-4 border-t border-slate-700/50">
+                            <div class="text-[10px] uppercase font-bold text-blue-400 mb-1 tracking-wider">Why it works
+                            </div>
+                            <div class="text-xs text-slate-400 mb-3 leading-relaxed">Sells inflated options premium
+                                (High IV) when a stock in a long-term uptrend experiences a sharp, temporary oversold
+                                pullback, betting on mean reversion.</div>
+
+                            <div class="text-[10px] uppercase font-bold text-slate-500 mb-1 tracking-wider">Target Setup
+                            </div>
+                            <div class="font-mono text-sm font-semibold text-slate-200 mb-3">Sell 30Δ Put / 45 DTE</div>
+
+                            <div class="text-[10px] uppercase font-bold text-amber-500/80 mb-1 tracking-wider">Exit
+                                Rules</div>
+                            <div class="font-mono text-xs text-slate-300">Close at 50% Max Profit or at 21 DTE
+                                (whichever comes first) to minimize tail risk.</div>
+                        </div>
+                    </div>
+
+                    <!-- Strategy 3: Covered Call Protocol -->
+                    <div id="card-strat3"
+                        class="bg-slate-800/80 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col card-hover relative group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-slate-700" id="indicator-strat3"></div>
+                        <div class="p-5 flex-grow">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Strat
+                                        03</span>
+                                    <h3 class="text-lg font-bold text-white leading-tight mt-1">Covered Call Protocol
+                                    </h3>
+                                </div>
+                                <div id="badge-strat3"
+                                    class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-400 flex items-center gap-1 border border-slate-600">
+                                    <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> IDLE
+                                </div>
+                            </div>
+                            <!-- Action Button -->
+                            <button id="btn-take-strat3"
+                                onclick="takeTrade(3, 'Covered Call Protocol', 'Roll at 21 DTE or if the short call is tested, capturing theta decay while maintaining the core stock position.')"
+                                class="hidden w-full mb-4 bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded-lg text-xs font-bold tracking-wide transition-colors shadow-sm focus:ring-2 focus:ring-emerald-400 focus:outline-none flex justify-center items-center gap-2">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> TAKE TRADE
+                            </button>
+
+                            <ul class="text-sm text-slate-300 space-y-2 mb-5 font-mono" id="checklist-strat3">
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> Price &gt; SMA50 &amp; SMA200</li>
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> MACD &gt; Signal Line</li>
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> RSI14: 35 - 55 (Neutral)</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-900/50 p-4 border-t border-slate-700/50">
+                            <div class="text-[10px] uppercase font-bold text-blue-400 mb-1 tracking-wider">Why it works
+                            </div>
+                            <div class="text-xs text-slate-400 mb-3 leading-relaxed">Generates income on long-term
+                                holdings strictly when momentum (MACD) is positive but the asset is not overbought
+                                (Neutral RSI), maximizing premium without capping near-term upside bursts.</div>
+
+                            <div class="text-[10px] uppercase font-bold text-slate-500 mb-1 tracking-wider">Target Setup
+                            </div>
+                            <div class="font-mono text-sm font-semibold text-slate-200 mb-3">Sell 30Δ Call / 38-52 DTE
+                            </div>
+
+                            <div class="text-[10px] uppercase font-bold text-amber-500/80 mb-1 tracking-wider">Exit
+                                Rules</div>
+                            <div class="font-mono text-xs text-slate-300">Roll at 21 DTE or if the short call is tested,
+                                capturing theta decay while maintaining the core stock position.</div>
+                        </div>
+                    </div>
+
+                    <!-- Strategy 4: 5-Day Low Mean Reversion -->
+                    <div id="card-strat4"
+                        class="bg-slate-800/80 rounded-2xl border border-slate-700 shadow-lg overflow-hidden flex flex-col card-hover relative group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-slate-700" id="indicator-strat4"></div>
+                        <div class="p-5 flex-grow">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Strat
+                                        04</span>
+                                    <h3 class="text-lg font-bold text-white leading-tight mt-1">5-Day Low Mean Revert
+                                    </h3>
+                                </div>
+                                <div id="badge-strat4"
+                                    class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-400 flex items-center gap-1 border border-slate-600">
+                                    <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> IDLE
+                                </div>
+                            </div>
+                            <!-- Action Button -->
+                            <button id="btn-take-strat4"
+                                onclick="takeTrade(4, '5-Day Low Mean Revert', 'Close when 2-Day RSI crosses back above 50, OR enact a strict 5-Day Time Stop.')"
+                                class="hidden w-full mb-4 bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded-lg text-xs font-bold tracking-wide transition-colors shadow-sm focus:ring-2 focus:ring-emerald-400 focus:outline-none flex justify-center items-center gap-2">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> TAKE TRADE
+                            </button>
+
+                            <ul class="text-sm text-slate-300 space-y-2 mb-5 font-mono" id="checklist-strat4">
+                                <li class="flex items-center gap-2"><i data-lucide="circle"
+                                        class="w-3.5 h-3.5 text-slate-600"></i> Close &lt; 5-Day Lowest Low</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-900/50 p-4 border-t border-slate-700/50">
+                            <div class="text-[10px] uppercase font-bold text-blue-400 mb-1 tracking-wider">Why it works
+                            </div>
+                            <div class="text-xs text-slate-400 mb-3 leading-relaxed">Buys intrinsic value (ITM calls) to
+                                catch a swift multi-day bounce directly after a stock breaks its immediate 5-day low
+                                structure.</div>
+
+                            <div class="text-[10px] uppercase font-bold text-slate-500 mb-1 tracking-wider">Target Setup
+                            </div>
+                            <div class="font-mono text-sm font-semibold text-slate-200 mb-3">Buy 60Δ ITM Call</div>
+
+                            <div class="text-[10px] uppercase font-bold text-amber-500/80 mb-1 tracking-wider">Exit
+                                Rules</div>
+                            <div class="font-mono text-xs text-slate-300">Close when 2-Day RSI crosses back above 50, OR
+                                enact a strict 5-Day Time Stop.</div>
+                        </div>
+                    </div>
+
+                    <!-- Overlay for empty state -->
+                    <div id="emptyStateOverlay"
+                        class="absolute inset-0 z-10 bg-slate-900/60 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center p-6 border border-slate-700/50 transition-opacity duration-300">
+                        <i data-lucide="zap" class="w-12 h-12 text-slate-500 mb-4 mb-2"></i>
+                        <h3 class="text-xl font-bold text-slate-300">Awaiting Input</h3>
+                        <p class="text-slate-500 text-sm text-center mt-2 max-w-xs">Enter a ticker in the search bar
+                            above to evaluate high-probability setups.</p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // ---------------------------------------------------
+        // 1. Mock Data Engine & State
+        // ---------------------------------------------------
+
+        let globalState = {
+            currentScanned: null,
+            activeTrades: [] // Array of active trades to simulate progress
+        };
+
+        // Seeded random number generator so a ticker always yields the same result per session
+        function cyrb128(str) {
+            let h1 = 1779033703, h2 = 3144134277,
+                h3 = 1013904242, h4 = 2773480762;
+            for (let i = 0, k; i < str.length; i++) {
+                k = str.charCodeAt(i);
+                h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+                h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+                h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+                h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+            }
+            h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+            h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+            h3 = Math.imul(h1 ^ (h3 >>> 17), 2716044179);
+            h4 = Math.imul(h2 ^ (h4 >>> 19), 951274213);
+            return [(h1 ^ h2 ^ h3 ^ h4) >>> 0, (h2 ^ h1) >>> 0, (h3 ^ h1) >>> 0, (h4 ^ h1) >>> 0];
+        }
+
+        function sfc32(a, b, c, d) {
+            return function () {
+                a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+                var t = (a + b | 0) + d | 0;
+                d = d + 1 | 0;
+                a = b ^ b >>> 9;
+                b = c + (c << 3) | 0;
+                c = (c << 21 | c >>> 11);
+                c = c + t | 0;
+                return (t >>> 0) / 4294967296;
+            }
+        }
+
+        let seededRandom = Math.random;
+
+        function setSeed(str) {
+            const seed = cyrb128(str);
+            seededRandom = sfc32(seed[0], seed[1], seed[2], seed[3]);
+        }
+
+        // Random float between min and max
+        function randf(min, max) {
+            return seededRandom() * (max - min) + min;
+        }
+        function randi(min, max) {
+            return Math.floor(randf(min, max));
+        }
+
+        // Generate synthetic indicators based on ticker hash
+        function generateMockTechnicals(ticker) {
+            setSeed(ticker.toUpperCase() + new Date().toDateString()); // Same values today
+
+            const price = parseFloat(randf(10, 550).toFixed(2));
+
+            // Randomly bias trends so we get a mix of setups
+            const trendFactor = randf(-1, 1);
+
+            const data = {
+                ticker: ticker.toUpperCase(),
+                price: price,
+                // Strategy 1 Needs
+                sma10: price * (1 - trendFactor * 0.05),
+                prevSma10: price * (1 - trendFactor * 0.04), // Trend dictates if sma10 < prev
+                lowerBand3SD: price * randf(0.85, 0.98),
+                dailyMovePct: randf(-3, 3), // Strategy wants between -1 and 1
+
+                // Strategy 2 Needs
+                sma200: price * randf(0.7, 1.3),
+                rsi14: randi(10, 90),
+                ivRank: randi(10, 100),
+
+                // Strategy 3 Needs
+                sma50: price * randf(0.8, 1.2),
+                macdLine: randf(-2, 2),
+                macdSignal: randf(-2, 2),
+
+                // Strategy 4 Needs
+                lowestLow5Day: price * randf(0.95, 1.05)
+            };
+
+            // Fix math relationships slightly so sometimes we get true
+            // To make the demo robust, give 20% flat chance for some strict gates to just be true
+            if (seededRandom() > 0.8) data.dailyMovePct = randf(-0.9, 0.9);
+            if (seededRandom() > 0.8) data.rsi14 = randi(15, 29); // For Strat 2
+
+            return data;
+        }
+
+        // ---------------------------------------------------
+        // 2. Logic Gates (The 4 Strategies)
+        // ---------------------------------------------------
+
+        function evaluateStrategy1(data) {
+            const checks = [
+                { id: 's1-c1', text: 'SMA10 Downward Trend', pass: data.sma10 < data.prevSma10 },
+                { id: 's1-c2', text: 'Price &lt; SMA10', pass: data.price < data.sma10 },
+                { id: 's1-c3', text: 'Price &gt; Lower Band (-3 SD)', pass: data.price > data.lowerBand3SD },
+                { id: 's1-c4', text: 'Daily Move Between &plusmn;1%', pass: data.dailyMovePct >= -1 && data.dailyMovePct <= 1 }
+            ];
+            const qualified = checks.every(c => c.pass);
+            return { checks, qualified };
+        }
+
+        function evaluateStrategy2(data) {
+            const checks = [
+                { id: 's2-c1', text: 'Price &gt; SMA200', pass: data.price > data.sma200 },
+                { id: 's2-c2', text: 'RSI14 &lt; 30 (Oversold)', pass: data.rsi14 < 30 },
+                { id: 's2-c3', text: 'IV Rank: 35% - 70%', pass: data.ivRank >= 35 && data.ivRank <= 70 }
+            ];
+            const qualified = checks.every(c => c.pass);
+            return { checks, qualified };
+        }
+
+        function evaluateStrategy3(data) {
+            const checks = [
+                { id: 's3-c1', text: 'Price &gt; SMA50 &amp; SMA200', pass: data.price > data.sma50 && data.price > data.sma200 },
+                { id: 's3-c2', text: 'MACD &gt; Signal Line', pass: data.macdLine > data.macdSignal },
+                { id: 's3-c3', text: 'RSI14: 35 - 55 (Neutral)', pass: data.rsi14 >= 35 && data.rsi14 <= 55 }
+            ];
+            const qualified = checks.every(c => c.pass);
+            return { checks, qualified };
+        }
+
+        function evaluateStrategy4(data) {
+            const checks = [
+                { id: 's4-c1', text: 'Close &lt; 5-Day Lowest Low', pass: data.price < data.lowestLow5Day }
+            ];
+            const qualified = checks.every(c => c.pass);
+            return { checks, qualified };
+        }
+
+        // ---------------------------------------------------
+        // 3. UI Update Routines
+        // ---------------------------------------------------
+
+        function updateCardUI(cardNum, result) {
+            const cardEl = document.getElementById(`card-strat${cardNum}`);
+            const badgeEl = document.getElementById(`badge-strat${cardNum}`);
+            const checkListEl = document.getElementById(`checklist-strat${cardNum}`);
+            const indicatorEl = document.getElementById(`indicator-strat${cardNum}`);
+
+            // Update Badge & Indicator
+            if (result.qualified) {
+                badgeEl.innerHTML = `<i data-lucide="check-circle" class="w-3.5 h-3.5"></i> QUALIFIED`;
+                badgeEl.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-900/40 text-emerald-400 flex items-center gap-1 border border-emerald-800 shadow-[0_0_10px_rgba(52,211,102,0.2)]";
+                indicatorEl.className = "absolute top-0 left-0 w-full h-1 bg-emerald-500 status-pulse";
+                cardEl.classList.add('border-emerald-800/50');
+
+                // Show Take Trade Button
+                const btn = document.getElementById(`btn-take-strat${cardNum}`);
+                if (btn) btn.classList.remove('hidden');
+
+            } else {
+                badgeEl.innerHTML = `<i data-lucide="x-circle" class="w-3.5 h-3.5"></i> NO TRADE`;
+                badgeEl.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-red-900/30 text-red-400 flex items-center gap-1 border border-red-900/50";
+                indicatorEl.className = "absolute top-0 left-0 w-full h-1 bg-slate-700";
+                cardEl.classList.remove('border-emerald-800/50');
+
+                // Hide Take Trade Button
+                const btn = document.getElementById(`btn-take-strat${cardNum}`);
+                if (btn) btn.classList.add('hidden');
+            }
+
+            // Render Checklist
+            let html = "";
+            result.checks.forEach(c => {
+                if (c.pass) {
+                    html += `<li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-emerald-500"></i> <span class="text-slate-200">${c.text}</span></li>`;
+                } else {
+                    html += `<li class="flex items-center gap-2"><i data-lucide="x" class="w-4 h-4 text-red-500"></i> <span class="text-slate-500 line-through">${c.text}</span></li>`;
+                }
+            });
+            checkListEl.innerHTML = html;
+        }
+
+        // ---------------------------------------------------
+        // 4. Active Trades Simulation Logic
+        // ---------------------------------------------------
+
+        function saveTradesToStorage() {
+            localStorage.setItem('optionsScreenerTrades', JSON.stringify(globalState.activeTrades));
+        }
+
+        function loadTradesFromStorage() {
+            try {
+                const stored = localStorage.getItem('optionsScreenerTrades');
+                if (stored) {
+                    globalState.activeTrades = JSON.parse(stored);
+                    renderActiveTrades();
+                }
+            } catch (e) {
+                console.error("Could not load trades", e);
+            }
+        }
+
+        function takeTrade(stratNum, stratName, exitRules) {
+            if (!globalState.currentScanned) return;
+
+            const newTrade = {
+                id: Date.now(),
+                ticker: globalState.currentScanned.ticker,
+                stratNum: stratNum,
+                stratName: stratName,
+                exitRules: exitRules,
+                progress: 0, // 0 to 100 representing mock progression to exit
+                status: 'active' // 'active', 'exit'
+            };
+
+            globalState.activeTrades.unshift(newTrade);
+            saveTradesToStorage();
+            renderActiveTrades();
+        }
+
+        function removeTrade(id) {
+            globalState.activeTrades = globalState.activeTrades.filter(t => t.id !== id);
+            saveTradesToStorage();
+            renderActiveTrades();
+        }
+
+        function renderActiveTrades() {
+            const listEl = document.getElementById('activeTradesList');
+            const countEl = document.getElementById('activeTradesCount');
+            countEl.innerText = globalState.activeTrades.length;
+
+            if (globalState.activeTrades.length === 0) {
+                listEl.innerHTML = `<li id="emptyActive" class="text-xs text-slate-500 italic text-center py-8">No active trades. Scan a ticker and save a qualified strategy.</li>`;
+                return;
+            }
+
+            let html = '';
+            globalState.activeTrades.forEach(t => {
+                const isExit = t.status === 'exit';
+                const cardClasses = isExit ? 'border-red-600 bg-red-950/20 exit-now-alert' : 'border-slate-700/50 bg-slate-900/50';
+
+                html += `
+                <li class="rounded-xl border shadow-sm p-4 transition-all duration-300 ${cardClasses}">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-bold font-mono text-lg ${isExit ? 'text-red-400' : 'text-blue-400'}">${t.ticker}</div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded ${isExit ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400'}">
+                                ${isExit ? 'EXIT NOW' : 'IN PROGRESS'}
+                            </span>
+                            <button onclick="removeTrade(${t.id})" class="text-slate-500 hover:text-red-400 transition-colors" title="Remove Trade">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-xs font-semibold text-slate-300 mb-3">${t.stratName}</div>
+                    
+                    ${!isExit ? `
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 mb-2 mt-4">
+                        <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: ${t.progress}%"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-500 text-right capitalize mb-4">Simulating holding period...</div>
+                    ` : ''}
+
+                    <div class="text-[10px] uppercase font-bold ${isExit ? 'text-red-400' : 'text-slate-500'} mb-1 mt-2 tracking-wider">Exit Condition</div>
+                    <div class="text-xs text-slate-400 font-mono leading-relaxed line-clamp-3">${t.exitRules}</div>
+                </li>
+                `;
+            });
+            listEl.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // Mock Background Progress Simulator
+        setInterval(() => {
+            if (globalState.activeTrades.length === 0) return;
+
+            let needsRender = false;
+
+            globalState.activeTrades.forEach(t => {
+                if (t.status === 'active') {
+                    // Randomly increment mock scenario progress
+                    t.progress += Math.random() * 8;
+                    needsRender = true;
+
+                    if (t.progress >= 100) {
+                        t.progress = 100;
+                        t.status = 'exit';
+                    }
+                }
+            });
+
+            if (needsRender) {
+                saveTradesToStorage();
+                renderActiveTrades();
+            }
+        }, 3000); // Tick every 3 seconds for demonstration
+
+
+        // ---------------------------------------------------
+        // 5. Main Execution
+        // ---------------------------------------------------
+
+        function scanTicker(ticker) {
+            if (!ticker) return;
+
+            // Hide Overlay
+            document.getElementById('emptyStateOverlay').classList.add('opacity-0');
+            setTimeout(() => { document.getElementById('emptyStateOverlay').classList.add('hidden'); }, 300);
+
+            // Fetch mock data
+            const data = generateMockTechnicals(ticker);
+            globalState.currentScanned = data;
+
+            // Update Header Stats
+            document.getElementById('tickerStatsHeader').classList.remove('hidden');
+            document.getElementById('currentTicker').innerText = data.ticker;
+            document.getElementById('currentPrice').innerText = "$" + data.price.toFixed(2);
+            document.getElementById('tickerIVR').innerText = data.ivRank + "%";
+            document.getElementById('tickerRSI').innerText = data.rsi14.toFixed(1);
+
+            // Execute logic gates
+            const res1 = evaluateStrategy1(data);
+            const res2 = evaluateStrategy2(data);
+            const res3 = evaluateStrategy3(data);
+            const res4 = evaluateStrategy4(data);
+
+            // Update DOM
+            updateCardUI(1, res1);
+            updateCardUI(2, res2);
+            updateCardUI(3, res3);
+            updateCardUI(4, res4);
+
+            lucide.createIcons(); // Re-parse injected icons
+        }
+
+        // Bind Events
+        document.getElementById('scanBtn').addEventListener('click', () => {
+            scanTicker(document.getElementById('tickerInput').value.trim());
+        });
+
+        document.getElementById('tickerInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                scanTicker(document.getElementById('tickerInput').value.trim());
+            }
+        });
+
+        // Initial setup
+        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('currentDateDisplay').innerText = new Date().toLocaleDateString('en-US', dateOptions);
+
+        // Load active trades on startup
+        loadTradesFromStorage();
+
+    </script>
+</body>
+
+</html>
