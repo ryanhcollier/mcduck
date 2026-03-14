@@ -648,7 +648,8 @@
                 stratName: stratName,
                 exitRules: exitRules,
                 progress: 0, // 0 to 100 representing mock progression to exit
-                status: 'active' // 'active', 'exit'
+                status: 'active', // 'active', 'exit'
+                lastProgressTime: Date.now()
             };
 
             globalState.activeTrades.unshift(newTrade);
@@ -696,7 +697,7 @@
                     <div class="w-full bg-slate-800 rounded-full h-1.5 mb-2 mt-4">
                         <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: ${t.progress}%"></div>
                     </div>
-                    <div class="text-[10px] text-slate-500 text-right capitalize mb-4">Simulating holding period...</div>
+                    <div class="text-[10px] text-slate-500 text-right capitalize mb-4">Tracking active market hours (EST)...</div>
                     ` : ''}
 
                     <div class="text-[10px] uppercase font-bold ${isExit ? 'text-red-400' : 'text-slate-500'} mb-1 mt-2 tracking-wider">Exit Condition</div>
@@ -709,20 +710,50 @@
         }
 
         // Mock Background Progress Simulator
-        setInterval(() => {
+        function simulateProgress() {
             if (globalState.activeTrades.length === 0) return;
 
             let needsRender = false;
+            const now = Date.now();
 
             globalState.activeTrades.forEach(t => {
                 if (t.status === 'active') {
-                    // Randomly increment mock scenario progress
-                    t.progress += Math.random() * 8;
-                    needsRender = true;
+                    if (!t.lastProgressTime) t.lastProgressTime = now;
 
-                    if (t.progress >= 100) {
-                        t.progress = 100;
-                        t.status = 'exit';
+                    let hoursPassed = 0;
+                    let checkTime = t.lastProgressTime;
+
+                    // Cap max catch-up to 30 days to avoid long loops if inactive for months
+                    if (now - checkTime > 30 * 24 * 3600000) {
+                        checkTime = now - 30 * 24 * 3600000;
+                    }
+
+                    // Look back through every elapsed hour since we last updated progress
+                    while (checkTime + 3600000 <= now) {
+                        checkTime += 3600000;
+                        const estDateStr = new Date(checkTime).toLocaleString("en-US", { timeZone: "America/New_York", year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false });
+                        const estDate = new Date(estDateStr);
+                        const day = estDate.getDay();
+                        const hr = estDate.getHours();
+                        const min = estDate.getMinutes();
+                        const timeOfDay = hr + (min / 60);
+
+                        // Trading hours: Mon-Fri, 8:30 AM to 4:00 PM EST
+                        if (day >= 1 && day <= 5 && timeOfDay >= 8.5 && timeOfDay < 16.01) {
+                            hoursPassed++;
+                        }
+                    }
+
+                    if (hoursPassed > 0) {
+                        // Increment progress roughly 4% per active trading hour (~25 active hours to reach target)
+                        t.progress += (Math.random() * 5 + 3) * hoursPassed;
+                        t.lastProgressTime = checkTime;
+                        needsRender = true;
+
+                        if (t.progress >= 100) {
+                            t.progress = 100;
+                            t.status = 'exit';
+                        }
                     }
                 }
             });
@@ -731,7 +762,10 @@
                 saveTradesToStorage();
                 renderActiveTrades();
             }
-        }, 3000); // Tick every 3 seconds for demonstration
+        }
+
+        // Run simulation every minute to track time progression
+        setInterval(simulateProgress, 60000);
 
 
         // ---------------------------------------------------
@@ -789,6 +823,7 @@
 
         // Load active trades on startup
         loadTradesFromStorage();
+        simulateProgress();
 
     </script>
 </body>
