@@ -1615,22 +1615,8 @@
                 if (overlay) overlay.classList.add('hidden');
                 document.getElementById('tickerInput').value = '';
 
-                // Keep header visible, but blank out stats
-                if (headerStats) headerStats.classList.remove('hidden');
-                const tickerEl = document.getElementById('currentTicker');
-                if (tickerEl) tickerEl.textContent = '--';
-                const priceEl = document.getElementById('currentPrice');
-                if (priceEl) priceEl.textContent = '$--';
-                const ivrEl = document.getElementById('tickerIVR');
-                if (ivrEl) ivrEl.textContent = '--%';
-                const rsiEl = document.getElementById('tickerRSI');
-                if (rsiEl) rsiEl.textContent = '--';
-                
-                const canvas = document.getElementById('sparklineCanvas');
-                if (canvas) {
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                }
+                // Hide header stats in scanner mode
+                if (headerStats) headerStats.classList.add('hidden');
 
                 // Show scanner result containers, hide checklists & take trade buttons
                 for (let i = 1; i <= 5; i++) {
