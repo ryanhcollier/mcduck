@@ -124,7 +124,7 @@
 
         <!-- Header & Favorites Bar -->
         <header
-            class="flex flex-col gap-2 bg-slate-800/50 p-4 md:p-6 rounded-2xl border border-slate-700/50 shadow-lg backdrop-blur-sm">
+            class="sticky top-4 z-40 flex flex-col gap-2 bg-slate-800/80 p-4 md:p-6 rounded-2xl border border-slate-700/50 shadow-lg backdrop-blur-md">
             <div class="flex justify-between items-end border-b border-slate-700/50 pb-2 mb-1">
                 <div class="flex items-center gap-4">
                     <!-- App Logo -->
@@ -135,7 +135,7 @@
                     <div class="flex items-center gap-2 text-slate-500 text-xs font-mono font-medium tracking-wide">
                         <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
                         <span id="currentDateDisplay">--</span>
-                        <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/50">v1.1.0</span>
+                        <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/50">v1.1.1</span>
                     </div>
                 </div>
 
@@ -976,7 +976,133 @@
         }
 
         // ---------------------------------------------------
-        // 4. Active Trades Simulation Logic
+        // 4.1 Local Storage & Trade Management
+        // ---------------------------------------------------
+
+        function saveTradesToStorage() {
+            localStorage.setItem('optionsScreener_activeTrades', JSON.stringify(globalState.activeTrades));
+            localStorage.setItem('optionsScreener_historyTrades', JSON.stringify(globalState.historyTrades));
+        }
+
+        function loadTradesFromStorage() {
+            const storedActive = localStorage.getItem('optionsScreener_activeTrades');
+            if (storedActive) {
+                try {
+                    globalState.activeTrades = JSON.parse(storedActive);
+                } catch (e) {
+                    console.error("Could not load active trades", e);
+                }
+            }
+            const storedHistory = localStorage.getItem('optionsScreener_historyTrades');
+            if (storedHistory) {
+                try {
+                    globalState.historyTrades = JSON.parse(storedHistory);
+                } catch (e) {
+                    console.error("Could not load history trades", e);
+                }
+            }
+            if (typeof renderActiveTrades === 'function') renderActiveTrades();
+            renderHistoryTrades();
+        }
+
+        function closeTrade(id) {
+            const tradeIndex = globalState.activeTrades.findIndex(trade => trade.id === id);
+            if (tradeIndex > -1) {
+                const trade = globalState.activeTrades[tradeIndex];
+                
+                // Calculate PnL
+                const pnl = (trade.currentPrice - trade.entryPrice) * trade.qty * (trade.posType === 'Short' || trade.posType === 'Credit Spread' ? -1 : 1) * 100; // Assuming 100 shares per contract
+
+                trade.status = 'closed';
+                trade.closePrice = trade.currentPrice;
+                trade.pnl = pnl;
+                trade.closeDate = new Date().toISOString();
+
+                globalState.historyTrades.push(trade);
+                globalState.activeTrades.splice(tradeIndex, 1);
+                saveTradesToStorage();
+                renderActiveTrades();
+                renderHistoryTrades();
+                showToast(`Trade on ${trade.ticker} closed! PnL: $${pnl.toFixed(2)}`, 'success');
+            }
+        }
+
+        function clearHistory() {
+            if (confirm("Are you sure you want to clear all your trade history? This cannot be undone.")) {
+                globalState.historyTrades = [];
+                saveTradesToStorage();
+                renderHistoryTrades();
+                showToast('Trade history cleared.', 'success');
+            }
+        }
+
+        function renderHistoryTrades() {
+            const container = document.getElementById('historyTradesList');
+            const emptyState = document.getElementById('emptyHistory');
+            if (!container) return;
+
+            if (globalState.historyTrades.length === 0) {
+                container.innerHTML = '';
+                if(emptyState) {
+                    container.appendChild(emptyState);
+                    emptyState.classList.remove('hidden');
+                }
+                return;
+            }
+
+            container.innerHTML = '';
+            globalState.historyTrades.forEach(trade => {
+                const li = document.createElement('li');
+                li.className = "bg-slate-800/80 rounded-xl p-4 border border-slate-700/50 relative group transition-all hover:bg-slate-800 hover:border-slate-600 shadow-sm";
+                
+                const pnlClass = trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400';
+                const pnlSign = trade.pnl >= 0 ? '+' : '';
+                
+                li.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-slate-200 tracking-wide">${trade.ticker}</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300 border border-slate-600">${trade.posType} &times; ${trade.qty}</span>
+                            </div>
+                            <div class="text-[10px] text-slate-400 font-mono tracking-wider uppercase">${trade.stratName}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-bold tracking-wide ${pnlClass}">${pnlSign}$${trade.pnl.toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-500 font-mono mt-3 pt-3 border-t border-slate-700/50">
+                        <div>In: $${trade.entryPrice.toFixed(2)}</div>
+                        <div>Out: $${trade.closePrice.toFixed(2)}</div>
+                    </div>
+                    <div class="text-[9px] text-slate-500 mt-2 text-right">Closed: ${new Date(trade.closeDate).toLocaleDateString()}</div>
+                `;
+                container.appendChild(li);
+            });
+        }
+
+        function switchTradeTab(tab) {
+            const btnActive = document.getElementById('tabActive');
+            const btnHistory = document.getElementById('tabHistory');
+            const listActive = document.getElementById('activeTradesList');
+            const listHistory = document.getElementById('historyTradesList');
+            const btnClear = document.getElementById('clearHistoryBtn');
+
+            if (tab === 'active') {
+                btnActive.className = "px-3 py-1.5 text-sm font-semibold rounded-md transition-colors bg-slate-700 text-emerald-400 shadow-sm flex items-center gap-1";
+                btnHistory.className = "px-3 py-1.5 text-sm font-semibold rounded-md transition-colors text-slate-400 hover:text-slate-200 flex items-center gap-1";
+                listActive.classList.remove('hidden');
+                listHistory.classList.add('hidden');
+                if (btnClear) btnClear.classList.add('hidden');
+            } else {
+                btnHistory.className = "px-3 py-1.5 text-sm font-semibold rounded-md transition-colors bg-slate-700 text-blue-400 shadow-sm flex items-center gap-1";
+                btnActive.className = "px-3 py-1.5 text-sm font-semibold rounded-md transition-colors text-slate-400 hover:text-slate-200 flex items-center gap-1";
+                listHistory.classList.remove('hidden');
+                listActive.classList.add('hidden');
+                if (btnClear) btnClear.classList.remove('hidden');
+            }
+        }
+
         // ---------------------------------------------------
         // 4.5 Favorite Tickers Management
         // ---------------------------------------------------
