@@ -809,7 +809,7 @@
                 { id: 's1-c4', text: 'Daily Move Between &plusmn;1%', pass: data.dailyMovePct >= -1 && data.dailyMovePct <= 1 }
             ];
             const qualified = checks.every(c => c.pass);
-            return { checks, qualified };
+            return { checks, qualified, actionType: 'Credit Spread' };
         }
 
         function evaluateStrategy2(data) {
@@ -819,7 +819,7 @@
                 { id: 's2-c3', text: 'IV Rank: 35% - 70%', pass: data.ivRank >= 35 && data.ivRank <= 70 }
             ];
             const qualified = checks.every(c => c.pass);
-            return { checks, qualified };
+            return { checks, qualified, actionType: 'Long Call' };
         }
 
         function evaluateStrategy3(data) {
@@ -829,7 +829,7 @@
                 { id: 's3-c3', text: 'RSI14: 35 - 55 (Neutral)', pass: data.rsi14 >= 35 && data.rsi14 <= 55 }
             ];
             const qualified = checks.every(c => c.pass);
-            return { checks, qualified };
+            return { checks, qualified, actionType: 'Covered Call' };
         }
 
         function evaluateStrategy4(data) {
@@ -837,7 +837,7 @@
                 { id: 's4-c1', text: 'Close &lt; 5-Day Lowest Low', pass: data.price < data.lowestLow5Day }
             ];
             const qualified = checks.every(c => c.pass);
-            return { checks, qualified };
+            return { checks, qualified, actionType: 'Long Call' };
         }
 
         function evaluateStrategy5(data) {
@@ -849,7 +849,8 @@
                 { id: 's5-c2', text: 'Low Relative Volume (RV &lt; 1.0)', pass: data.relVolume < 1.0 }
             ];
             const qualified = checks.every(c => c.pass);
-            return { checks, qualified };
+            const actionType = data.openPrice > data.prevClose ? 'Long Put' : 'Long Call';
+            return { checks, qualified, actionType };
         }
 
         // ---------------------------------------------------
@@ -1331,11 +1332,11 @@
 
             marketUniverse.forEach(ticker => {
                 const data = generateMockTechnicals(ticker);
-                if (evaluateStrategy1(data).qualified) passes[1].push({ ticker, type: evaluateStrategy1(data).actionType || 'Long/Spread' });
-                if (evaluateStrategy2(data).qualified) passes[2].push({ ticker, type: evaluateStrategy2(data).actionType || 'Long/Spread' });
-                if (evaluateStrategy3(data).qualified) passes[3].push({ ticker, type: evaluateStrategy3(data).actionType || 'Long/Spread' });
-                if (evaluateStrategy4(data).qualified) passes[4].push({ ticker, type: evaluateStrategy4(data).actionType || 'Long/Spread' });
-                if (evaluateStrategy5(data).qualified) passes[5].push({ ticker, type: evaluateStrategy5(data).actionType || 'Long/Spread' });
+                if (evaluateStrategy1(data).qualified) passes[1].push({ ticker, type: evaluateStrategy1(data).actionType || 'Long' });
+                if (evaluateStrategy2(data).qualified) passes[2].push({ ticker, type: evaluateStrategy2(data).actionType || 'Long' });
+                if (evaluateStrategy3(data).qualified) passes[3].push({ ticker, type: evaluateStrategy3(data).actionType || 'Long' });
+                if (evaluateStrategy4(data).qualified) passes[4].push({ ticker, type: evaluateStrategy4(data).actionType || 'Long' });
+                if (evaluateStrategy5(data).qualified) passes[5].push({ ticker, type: evaluateStrategy5(data).actionType || 'Long' });
             });
 
             // Render to DOM
