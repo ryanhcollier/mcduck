@@ -145,7 +145,7 @@
                         class="text-[10px] sm:text-xs font-bold tracking-widest text-slate-400 uppercase transition-colors">TRADING</span>
                     <label class="relative inline-flex items-center cursor-pointer" title="Toggle Market Scanner">
                         <input type="checkbox" id="modeToggle" class="sr-only peer"
-                            onchange="toggleAppMode(this.checked)">
+                            onchange="toggleAppMode(this.checked)" checked>
                         <div
                             class="w-10 h-5 sm:w-11 sm:h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:after:bg-white peer-checked:bg-blue-600 border border-slate-600 shadow-inner">
                         </div>
@@ -163,7 +163,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
             <!-- Left Sidebar: Active Trades Panel -->
-            <div class="lg:col-span-1 flex flex-col gap-6">
+            <div id="leftSidebar" class="lg:col-span-1 flex flex-col gap-6">
                 <!-- Active Trades Wrapper -->
                 <div
                     class="bg-slate-800/50 rounded-2xl border border-slate-700/50 shadow-lg p-5 flex-grow flex flex-col">
@@ -197,7 +197,7 @@
             </div>
 
             <!-- Right Content: Strategy Cards Grid -->
-            <div class="lg:col-span-3">
+            <div id="mainContent" class="lg:col-span-3">
 
                 <!-- Current Ticker Header Info & Search -->
                 <!-- Current Ticker Header Info & Search -->
@@ -665,7 +665,7 @@
             historyTrades: [], // Array of closed trades
             pendingTrade: null, // Holds data temporarily while the TOS Modal is open
             favoriteTickers: [], // Array of pinned tickers
-            isScannerMode: false // Toggle for Market Scanner
+            isScannerMode: true // Toggle for Market Scanner
         };
 
         // Reduced to 10 tickers to support Polygon's Free Tier (5 requests/minute) scanning in 2 minutes
@@ -1599,12 +1599,35 @@
             // UI elements to hide/show
             const headerStats = document.getElementById('tickerStatsHeader');
             const overlay = document.getElementById('emptyStateOverlay');
+            const leftSidebar = document.getElementById('leftSidebar');
+            const mainContent = document.getElementById('mainContent');
 
             if (isScanner) {
                 // Hide single-ticker view elements
-                if (headerStats) headerStats.classList.add('hidden');
+                if (leftSidebar) leftSidebar.classList.add('hidden');
+                if (mainContent) {
+                    mainContent.classList.remove('lg:col-span-3');
+                    mainContent.classList.add('lg:col-span-4');
+                }
                 if (overlay) overlay.classList.add('hidden');
                 document.getElementById('tickerInput').value = '';
+
+                // Keep header visible, but blank out stats
+                if (headerStats) headerStats.classList.remove('hidden');
+                const tickerEl = document.getElementById('currentTicker');
+                if (tickerEl) tickerEl.textContent = '--';
+                const priceEl = document.getElementById('currentPrice');
+                if (priceEl) priceEl.textContent = '$--';
+                const ivrEl = document.getElementById('tickerIVR');
+                if (ivrEl) ivrEl.textContent = '--%';
+                const rsiEl = document.getElementById('tickerRSI');
+                if (rsiEl) rsiEl.textContent = '--';
+                
+                const canvas = document.getElementById('sparklineCanvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
 
                 // Show scanner result containers, hide checklists & take trade buttons
                 for (let i = 1; i <= 5; i++) {
@@ -1630,7 +1653,13 @@
                 setTimeout(runMarketScan, 300);
             } else {
                 // Revert to single-ticker mode
+                if (leftSidebar) leftSidebar.classList.remove('hidden');
+                if (mainContent) {
+                    mainContent.classList.remove('lg:col-span-4');
+                    mainContent.classList.add('lg:col-span-3');
+                }
                 if (headerStats) headerStats.classList.remove('hidden');
+                
                 if (!globalState.currentScanned && overlay) {
                     overlay.classList.remove('hidden');
                 }
@@ -1875,6 +1904,9 @@
         loadTradesFromStorage();
         loadFavoritesFromStorage();
         fetchRealtimePrices();
+        
+        // Initialize default app mode state
+        toggleAppMode(globalState.isScannerMode);
 
     </script>
 </body>
