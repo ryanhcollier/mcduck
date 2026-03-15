@@ -526,13 +526,31 @@
                 </button>
             </div>
             <div class="p-6">
+                <!-- Strategy Requirements Info Box -->
+                <div id="tosStrategySetup" class="bg-slate-900/50 rounded-lg p-3 mb-4 border border-slate-700/50">
+                    <!-- Injected by JS -->
+                </div>
+
                 <p class="text-sm text-slate-300 mb-4 leading-relaxed">
                     Paste the exact executed order string copied from ThinkOrSwim below to link live theoretical P/L
                     tracking.
                 </p>
-                <textarea id="tosInputStr" rows="3"
-                    class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-sm font-mono text-emerald-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 transition-all"
-                    placeholder="e.g. BUY +1 SPY 100 21 JAN 22 450 CALL @3.50 LMT"></textarea>
+
+                <!-- Leg 1 (Default) -->
+                <div id="leg1Container" class="mb-4">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Leg 1</label>
+                    <textarea id="tosInputStr" rows="2"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm font-mono text-emerald-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        placeholder="e.g. BUY +1 SPY 100 21 JAN 22 450 CALL @3.50 LMT"></textarea>
+                </div>
+
+                <!-- Leg 2 (Hidden by default, shown for multi-leg strategies) -->
+                <div id="leg2Container" class="mb-4 hidden">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Leg 2</label>
+                    <textarea id="tosInputStr2" rows="2"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm font-mono text-blue-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        placeholder="e.g. SELL -1 SPY 100 21 JAN 22 455 CALL @1.50 LMT"></textarea>
+                </div>
 
                 <div
                     class="bg-blue-900/20 border border-blue-900/50 rounded-lg p-3 flex gap-3 text-xs text-blue-300 mb-6">
@@ -897,7 +915,30 @@
                 stratName,
                 exitRules
             };
+            
+            // Populate Strategy Setup Box from UI
+            const checklistHtml = document.getElementById(`checklist-strat${stratNum}`).innerHTML;
+            document.getElementById('tosStrategySetup').innerHTML = `
+                <div class="text-[10px] uppercase font-bold text-slate-500 mb-2 tracking-wider">Strategy Requirements</div>
+                <ul class="text-sm text-slate-300 space-y-1.5 font-mono">
+                    ${checklistHtml}
+                </ul>
+            `;
+
+            // Reset Input Fields
             document.getElementById('tosInputStr').value = '';
+            document.getElementById('tosInputStr2').value = '';
+            
+            // Show/Hide Leg 2 for Multi-Leg Strategy 1 (Trend Call Credit Spread)
+            if (stratNum === 1) {
+                document.getElementById('leg2Container').classList.remove('hidden');
+                document.getElementById('leg1Container').querySelector('label').innerText = "Leg 1 (Short Call)";
+                document.getElementById('leg2Container').querySelector('label').innerText = "Leg 2 (Long Call)";
+            } else {
+                document.getElementById('leg2Container').classList.add('hidden');
+                document.getElementById('leg1Container').querySelector('label').innerText = "Leg 1";
+            }
+
             document.getElementById('tosModal').classList.remove('hidden');
         }
 
@@ -909,41 +950,63 @@
         function submitTOSTrade() {
             if (!globalState.pendingTrade) return;
 
-            const rawTOS = document.getElementById('tosInputStr').value.trim();
-            if (!rawTOS) {
-                alert("Please paste a ThinkOrSwim order string.");
+            const rawLeg1 = document.getElementById('tosInputStr').value.trim();
+            const rawLeg2 = document.getElementById('tosInputStr2').value.trim();
+            
+            if (!rawLeg1) {
+                alert("Please paste at least one ThinkOrSwim order string.");
                 return;
             }
 
-            // --- TOS PARSER LOGIC ---
-            // Example String: BUY +1 SPY 100 21 JAN 22 450 CALL @3.50 LMT
-            let entryPrice = 0.00;
-            let qty = 1;
-            let type = "Long";
+            // Inline helper to parse a TOS string
+            function parseTOSString(rawStr) {
+                let pPrice = 0.00;
+                let pQty = 1;
+                let pType = "Long";
 
-            // Extract Type
-            const upperStr = rawTOS.toUpperCase();
-            if (upperStr.startsWith("SELL") || upperStr.startsWith("SOLD")) type = "Short";
+                const upperStr = rawStr.toUpperCase();
+                if (upperStr.startsWith("SELL") || upperStr.startsWith("SOLD")) pType = "Short";
 
-            // Extract Price (find the @ symbol then parses the float)
-            const atIndex = rawTOS.indexOf('@');
-            if (atIndex !== -1) {
-                const afterAt = rawTOS.substring(atIndex + 1).trim();
-                const numMatch = afterAt.match(/^([0-9]*\.?[0-9]*)/);
-                if (numMatch && numMatch[1]) {
-                    entryPrice = parseFloat(numMatch[1]);
+                const atIndex = rawStr.indexOf('@');
+                if (atIndex !== -1) {
+                    const afterAt = rawStr.substring(atIndex + 1).trim();
+                    const numMatch = afterAt.match(/^([0-9]*\.?[0-9]*)/);
+                    if (numMatch && numMatch[1]) {
+                        pPrice = parseFloat(numMatch[1]);
+                    }
                 }
+
+                const qtyMatch = rawStr.match(/([+-]\d+)/);
+                if (qtyMatch && qtyMatch[1]) {
+                    pQty = parseInt(qtyMatch[1], 10);
+                }
+
+                return { raw: rawStr, price: pPrice, qty: Math.abs(pQty), type: pType };
             }
 
-            // Extract Qty (+1, -2, etc)
-            const qtyMatch = rawTOS.match(/([+-]\d+)/);
-            if (qtyMatch && qtyMatch[1]) {
-                qty = parseInt(qtyMatch[1], 10);
-            }
-
-            if (entryPrice <= 0) {
-                alert("Could not parse a valid entry price from the string. Try again.");
+            const leg1 = parseTOSString(rawLeg1);
+            if (leg1.price <= 0) {
+                alert("Could not parse a valid entry price from Leg 1. Try again.");
                 return;
+            }
+
+            let finalPrice = leg1.price;
+            let finalType = leg1.type;
+            let finalQty = leg1.qty;
+            const legs = [leg1];
+
+            // Handle multi-leg if strat 1 is active and input provided
+            if (globalState.pendingTrade.stratNum === 1 && rawLeg2) {
+                const leg2 = parseTOSString(rawLeg2);
+                if (leg2.price > 0) {
+                    legs.push(leg2);
+                    finalType = "Spread";
+                    // For a credit spread: Net Credit = Short Call Price - Long Call Price
+                    // We assume Leg 1 is the Short and Leg 2 is the Long based on UI setup
+                    const shortPrice = leg1.type === "Short" ? leg1.price : leg2.price;
+                    const longPrice = leg1.type === "Long" ? leg1.price : leg2.price;
+                    finalPrice = shortPrice - longPrice;
+                }
             }
 
             const newTrade = {
@@ -952,11 +1015,12 @@
                 stratNum: globalState.pendingTrade.stratNum,
                 stratName: globalState.pendingTrade.stratName,
                 exitRules: globalState.pendingTrade.exitRules,
-                rawTOS: rawTOS,
-                posType: type,
-                qty: Math.abs(qty),
-                entryPrice: entryPrice,
-                currentPrice: entryPrice, // Initialize mock live price
+                rawTOS: rawLeg1 + (rawLeg2 ? "\n" + rawLeg2 : ""),
+                legs: legs,
+                posType: finalType,
+                qty: finalQty,
+                entryPrice: finalPrice,
+                currentPrice: finalPrice, // Initialize mock live price
                 status: 'active'
             };
 
@@ -991,11 +1055,17 @@
                 const qty = t.qty || 1;
 
                 // Determine PnL for display
-                // (Current Px - Entry Px) / Entry Px for Long. Reversed for short.
                 let pnlRatio = 0;
                 if (entryPx > 0) {
-                    pnlRatio = (currentPx - entryPx) / entryPx;
-                    if (posType === "Short") pnlRatio = -pnlRatio;
+                    if (posType === "Spread") {
+                        // Assuming Credit Spread: logic is roughly short - long.
+                        // We profit when the spread gets cheaper (currentPx drops)
+                        pnlRatio = (entryPx - currentPx) / entryPx;
+                    } else if (posType === "Short") {
+                        pnlRatio = (entryPx - currentPx) / entryPx;
+                    } else { // Long
+                        pnlRatio = (currentPx - entryPx) / entryPx;
+                    }
                 }
                 const pnlPercentage = (pnlRatio * 100).toFixed(1);
                 const isGreen = pnlRatio >= 0;
