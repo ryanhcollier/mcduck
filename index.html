@@ -1672,8 +1672,13 @@
                     document.getElementById(`indicator-strat${i}`).className = 'absolute top-0 left-0 w-full h-1 bg-slate-700';
 
                     const badge = document.getElementById(`badge-strat${i}`);
-                    badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-blue-900/40 text-blue-400 flex items-center gap-1 border border-blue-500/30";
-                    badge.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> SCANNING...';
+                    badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-400 flex items-center gap-1 border border-slate-600";
+                    badge.innerHTML = '<i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> IDLE';
+                    
+                    const resultsContainer = document.getElementById(`scanner-results-strat${i}`);
+                    if (!resultsContainer.innerHTML.trim()) {
+                         resultsContainer.innerHTML = '<div class="text-xs text-slate-500 italic py-2">Click SCAN to evaluate favorites.</div>';
+                    }
                 }
                 lucide.createIcons();
             } else {
