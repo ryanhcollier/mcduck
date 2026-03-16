@@ -1698,7 +1698,24 @@
 
                 // Re-evaluate the current single ticker if it exists
                 if (globalState.currentScanned) {
-                    scanTicker(globalState.currentScanned.ticker, true);
+                    const data = globalState.currentScanned;
+                    
+                    document.getElementById('currentTicker').innerText = data.ticker;
+                    document.getElementById('currentPrice').innerText = "$" + data.price.toFixed(2);
+                    document.getElementById('tickerIVR').innerText = "--";
+                    document.getElementById('tickerRSI').innerText = data.rsi14.toFixed(1);
+                    
+                    if (globalState.currentScannedAggs) {
+                        renderSparkline(globalState.currentScannedAggs);
+                    }
+
+                    updateCardUI(1, evaluateStrategy1(data));
+                    updateCardUI(2, evaluateStrategy2(data));
+                    updateCardUI(3, evaluateStrategy3(data));
+                    updateCardUI(4, evaluateStrategy4(data));
+                    updateCardUI(5, evaluateStrategy5(data));
+
+                    lucide.createIcons();
                 } else {
                     // Reset to idle styling
                     for (let i = 1; i <= 5; i++) {
@@ -1880,6 +1897,7 @@
 
             const data = res.data;
             globalState.currentScanned = data;
+            globalState.currentScannedAggs = res.aggs;
 
             // Update Header Stats
             document.getElementById('tickerStatsHeader').classList.remove('hidden');
